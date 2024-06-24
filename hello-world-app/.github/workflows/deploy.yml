@@ -1,0 +1,81 @@
+name: Deploy to Elastic Beanstalk
+
+on:
+  push:
+    branches:
+      - dev  # Trigger deployment to Dev on push to dev branch
+      - uat  # Trigger deployment to UAT on push to uat branch
+      - main  # Trigger deployment to Prod on push to main branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: '16'  # Specify the version of Node.js if you're using it
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Run unit tests
+      run: npm run test -- --watch=false  # Adjust this command if necessary
+
+    - name: Run e2e tests
+      run: npm run e2e -- --prod  # Adjust this command if necessary
+
+    - name: Build the Angular project
+      run: npm run build -- --prod  # Adjust this command if necessary
+
+    - name: Upload build output as artifact
+      uses: actions/upload-artifact@v2
+      with:
+        name: build-output
+        path: /  # Path to the build output folder
+
+    - name: Deploy to Elastic Beanstalk (Dev)
+      if: github.ref == 'refs/heads/dev'
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_REGION: ${{ secrets.AWS_REGION }}
+        EB_APP_NAME: ${{ secrets.EB_APP_NAME_DEV }}
+        EB_ENV_NAME: ${{ secrets.EB_ENV_NAME_DEV }}
+      run: |
+        zip -r deploy.zip dist/ -x ".git/*"
+        aws s3 cp deploy.zip s3://elasticbeanstalk-${{ env.AWS_REGION }}-${{ secrets.AWS_ACCOUNT_ID }}/$GITHUB_SHA.zip
+        aws elasticbeanstalk create-application-version --application-name ${{ env.EB_APP_NAME }} --version-label $GITHUB_SHA --source-bundle S3Bucket=elasticbeanstalk-${{ env.AWS_REGION }}-${{ secrets.AWS_ACCOUNT_ID }},S3Key=$GITHUB_SHA.zip
+        aws elasticbeanstalk update-environment --application-name ${{ env.EB_APP_NAME }} --environment-name ${{ env.EB_ENV_NAME }} --version-label $GITHUB_SHA
+
+    - name: Deploy to Elastic Beanstalk (UAT)
+      if: github.ref == 'refs/heads/uat'
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_REGION: ${{ secrets.AWS_REGION }}
+        EB_APP_NAME: ${{ secrets.EB_APP_NAME_UAT }}
+        EB_ENV_NAME: ${{ secrets.EB_ENV_NAME_UAT }}
+      run: |
+        zip -r deploy.zip dist/ -x ".git/*"
+        aws s3 cp deploy.zip s3://elasticbeanstalk-${{ env.AWS_REGION }}-${{ secrets.AWS_ACCOUNT_ID }}/$GITHUB_SHA.zip
+        aws elasticbeanstalk create-application-version --application-name ${{ env.EB_APP_NAME }} --version-label $GITHUB_SHA --source-bundle S3Bucket=elasticbeanstalk-${{ env.AWS_REGION }}-${{ secrets.AWS_ACCOUNT_ID }},S3Key=$GITHUB_SHA.zip
+        aws elasticbeanstalk update-environment --application-name ${{ env.EB_APP_NAME }} --environment-name ${{ env.EB_ENV_NAME }} --version-label $GITHUB_SHA
+
+    - name: Deploy to Elastic Beanstalk (Prod)
+      if: github.ref == 'refs/heads/main'
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_REGION: ${{ secrets.AWS_REGION }}
+        EB_APP_NAME: ${{ secrets.EB_APP_NAME_PROD }}
+        EB_ENV_NAME: ${{ secrets.EB_ENV_NAME_PROD }}
+      run: |
+        zip -r deploy.zip dist/ -x ".git/*"
+        aws s3 cp deploy.zip s3://elasticbeanstalk-${{ env.AWS_REGION }}-${{ secrets.AWS_ACCOUNT_ID }}/$GITHUB_SHA.zip
+        aws elasticbeanstalk create-application-version --application-name ${{ env.EB_APP_NAME }} --version-label $GITHUB_SHA --source-bundle S3Bucket=elasticbeanstalk-${{ env.AWS_REGION }}-${{ secrets.AWS_ACCOUNT_ID }},S3Key=$GITHUB_SHA.zip
+        aws elasticbeanstalk update-environment --application-name ${{ env.EB_APP_NAME }} --environment-name ${{ env.EB_ENV_NAME }} --version-label $GITHUB_SHA
