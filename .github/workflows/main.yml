@@ -22,21 +22,25 @@ jobs:
 
     - name: Install dependencies
       run: npm install
+      working-directory: ./hello-world-app  # Adjust this if your package.json is in a different directory
 
     - name: Run unit tests
       run: npm run test -- --watch=false  # Adjust this command if necessary
+      working-directory: ./hello-world-app  # Adjust this if your package.json is in a different directory
 
     - name: Run e2e tests
       run: npm run e2e -- --prod  # Adjust this command if necessary
+      working-directory: ./hello-world-app  # Adjust this if your package.json is in a different directory
 
     - name: Build the Angular project
       run: npm run build -- --prod  # Adjust this command if necessary
+      working-directory: ./hello-world-app # Adjust this if your package.json is in a different directory
 
     - name: Upload build output as artifact
       uses: actions/upload-artifact@v2
       with:
         name: build-output
-        path: /  # Path to the build output folder
+        path: ./hello-world-app/dist/  # Path to the build output folder
 
     - name: Deploy to Elastic Beanstalk (Dev)
       if: github.ref == 'refs/heads/dev'
@@ -47,6 +51,7 @@ jobs:
         EB_APP_NAME: ${{ secrets.EB_APP_NAME_DEV }}
         EB_ENV_NAME: ${{ secrets.EB_ENV_NAME_DEV }}
       run: |
+        cd hello-world-app  # Adjust this if your project root is different
         zip -r deploy.zip dist/ -x ".git/*"
         aws s3 cp deploy.zip s3://elasticbeanstalk-${{ env.AWS_REGION }}-${{ secrets.AWS_ACCOUNT_ID }}/$GITHUB_SHA.zip
         aws elasticbeanstalk create-application-version --application-name ${{ env.EB_APP_NAME }} --version-label $GITHUB_SHA --source-bundle S3Bucket=elasticbeanstalk-${{ env.AWS_REGION }}-${{ secrets.AWS_ACCOUNT_ID }},S3Key=$GITHUB_SHA.zip
@@ -61,6 +66,7 @@ jobs:
         EB_APP_NAME: ${{ secrets.EB_APP_NAME_UAT }}
         EB_ENV_NAME: ${{ secrets.EB_ENV_NAME_UAT }}
       run: |
+        cd hello-world-app  # Adjust this if your project root is different
         zip -r deploy.zip dist/ -x ".git/*"
         aws s3 cp deploy.zip s3://elasticbeanstalk-${{ env.AWS_REGION }}-${{ secrets.AWS_ACCOUNT_ID }}/$GITHUB_SHA.zip
         aws elasticbeanstalk create-application-version --application-name ${{ env.EB_APP_NAME }} --version-label $GITHUB_SHA --source-bundle S3Bucket=elasticbeanstalk-${{ env.AWS_REGION }}-${{ secrets.AWS_ACCOUNT_ID }},S3Key=$GITHUB_SHA.zip
@@ -75,6 +81,7 @@ jobs:
         EB_APP_NAME: ${{ secrets.EB_APP_NAME_PROD }}
         EB_ENV_NAME: ${{ secrets.EB_ENV_NAME_PROD }}
       run: |
+        cd hello-world-app  # Adjust this if your project root is different
         zip -r deploy.zip dist/ -x ".git/*"
         aws s3 cp deploy.zip s3://elasticbeanstalk-${{ env.AWS_REGION }}-${{ secrets.AWS_ACCOUNT_ID }}/$GITHUB_SHA.zip
         aws elasticbeanstalk create-application-version --application-name ${{ env.EB_APP_NAME }} --version-label $GITHUB_SHA --source-bundle S3Bucket=elasticbeanstalk-${{ env.AWS_REGION }}-${{ secrets.AWS_ACCOUNT_ID }},S3Key=$GITHUB_SHA.zip
